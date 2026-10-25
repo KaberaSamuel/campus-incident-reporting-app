@@ -7,16 +7,15 @@ class StudentShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Student'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
+      appBar: AppBar(title: const Text('Student')),
+      body: const Center(
+        child: Text('Student shell — Home · Reports · Report · Inbox · Profile'),
       ),
-      body: const Center(child: Text('Student shell — Home · Reports · Report · Inbox · Profile')),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
+        onDestinationSelected: (index) {
+          if (index == 4) context.go('/student/profile');
+        },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Reports'),
