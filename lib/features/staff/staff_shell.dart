@@ -2,20 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class StaffShell extends StatelessWidget {
-  const StaffShell({super.key});
+  const StaffShell({required this.child, super.key});
+
+  final Widget child;
+
+  static const _routes = [
+    '/staff/dashboard',
+    '/staff/incidents',
+    '/staff/locations',
+    '/staff/inbox',
+    '/staff/profile',
+  ];
+
+  static const _titles = [
+    'Dashboard',
+    'Incidents',
+    'Locations',
+    'Inbox',
+    'Profile',
+  ];
+
+  int _selectedIndex(String path) {
+    if (path.startsWith('/staff/incidents')) return 1;
+    if (path.startsWith('/staff/locations')) return 2;
+    if (path.startsWith('/staff/inbox')) return 3;
+    if (path.startsWith('/staff/profile')) return 4;
+    return 0;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final path = GoRouterState.of(context).uri.path;
+    final index = _selectedIndex(path);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Staff')),
-      body: const Center(
-        child: Text('Staff shell — Dashboard · Incidents · Locations · Inbox · Profile'),
-      ),
+      appBar: AppBar(title: Text(_titles[index])),
+      body: child,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        onDestinationSelected: (index) {
-          if (index == 4) context.go('/staff/profile');
-        },
+        selectedIndex: index,
+        onDestinationSelected: (i) => context.go(_routes[i]),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
           NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Incidents'),

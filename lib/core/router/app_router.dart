@@ -7,14 +7,22 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/verify_email_screen.dart';
+import '../../features/incidents/screens/incident_detail_screen.dart';
+import '../../features/incidents/screens/incident_list_screen.dart';
+import '../../features/locations/screens/manage_locations_screen.dart';
+import '../../features/notifications/screens/inbox_screen.dart';
 import '../../features/profile/models/user_role.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/staff/screens/staff_dashboard_screen.dart';
 import '../../features/staff/staff_shell.dart';
+import '../../features/student/screens/report_incident_screen.dart';
+import '../../features/student/screens/student_home_screen.dart';
 import '../../features/student/student_shell.dart';
 
 class AppRouter {
   AppRouter({required AuthProvider authProvider}) : _auth = authProvider {
     router = GoRouter(
+      navigatorKey: rootNavigatorKey,
       initialLocation: '/',
       debugLogDiagnostics: true,
       refreshListenable: _auth,
@@ -47,25 +55,92 @@ class AppRouter {
         ),
         GoRoute(
           path: '/student',
-          name: 'student',
-          builder: (context, state) => const StudentShell(),
+          redirect: (context, state) =>
+              state.uri.path == '/student' ? '/student/home' : null,
           routes: [
+            ShellRoute(
+              builder: (context, state, child) => StudentShell(child: child),
+              routes: [
+                GoRoute(
+                  path: 'home',
+                  builder: (context, state) => const StudentHomeScreen(),
+                ),
+                GoRoute(
+                  path: 'reports',
+                  builder: (context, state) => const IncidentListScreen(
+                    title: 'Reports',
+                    incidentRoutePrefix: '/student/incident',
+                  ),
+                ),
+                GoRoute(
+                  path: 'report',
+                  builder: (context, state) => const ReportIncidentScreen(),
+                ),
+                GoRoute(
+                  path: 'inbox',
+                  builder: (context, state) => const InboxScreen(
+                    incidentRoutePrefix: '/student/incident',
+                  ),
+                ),
+                GoRoute(
+                  path: 'profile',
+                  builder: (context, state) => const ProfileScreen(),
+                ),
+              ],
+            ),
             GoRoute(
-              path: 'profile',
-              name: 'studentProfile',
-              builder: (context, state) => const ProfileScreen(),
+              parentNavigatorKey: rootNavigatorKey,
+              path: 'incident/:id',
+              builder: (context, state) => IncidentDetailScreen(
+                incidentId: state.pathParameters['id']!,
+                isStaffView: false,
+              ),
             ),
           ],
         ),
         GoRoute(
           path: '/staff',
-          name: 'staff',
-          builder: (context, state) => const StaffShell(),
+          redirect: (context, state) =>
+              state.uri.path == '/staff' ? '/staff/dashboard' : null,
           routes: [
+            ShellRoute(
+              builder: (context, state, child) => StaffShell(child: child),
+              routes: [
+                GoRoute(
+                  path: 'dashboard',
+                  builder: (context, state) => const StaffDashboardScreen(),
+                ),
+                GoRoute(
+                  path: 'incidents',
+                  builder: (context, state) => const IncidentListScreen(
+                    title: 'All incidents',
+                    incidentRoutePrefix: '/staff/incident',
+                    showMineOnlyToggle: false,
+                  ),
+                ),
+                GoRoute(
+                  path: 'locations',
+                  builder: (context, state) => const ManageLocationsScreen(),
+                ),
+                GoRoute(
+                  path: 'inbox',
+                  builder: (context, state) => const InboxScreen(
+                    incidentRoutePrefix: '/staff/incident',
+                  ),
+                ),
+                GoRoute(
+                  path: 'profile',
+                  builder: (context, state) => const ProfileScreen(),
+                ),
+              ],
+            ),
             GoRoute(
-              path: 'profile',
-              name: 'staffProfile',
-              builder: (context, state) => const ProfileScreen(),
+              parentNavigatorKey: rootNavigatorKey,
+              path: 'incident/:id',
+              builder: (context, state) => IncidentDetailScreen(
+                incidentId: state.pathParameters['id']!,
+                isStaffView: true,
+              ),
             ),
           ],
         ),
@@ -76,6 +151,8 @@ class AppRouter {
       ),
     );
   }
+
+  static final rootNavigatorKey = GlobalKey<NavigatorState>();
 
   final AuthProvider _auth;
   late final GoRouter router;
@@ -101,7 +178,7 @@ class AppRouter {
     }
 
     final role = _auth.profile?.role ?? UserRole.student;
-    final home = role == UserRole.staff ? '/staff' : '/student';
+    final home = role == UserRole.staff ? '/staff/dashboard' : '/student/home';
 
     if (_publicPaths.contains(location) ||
         location == '/verify-email' ||
@@ -110,10 +187,10 @@ class AppRouter {
     }
 
     if (role == UserRole.staff && location.startsWith('/student')) {
-      return '/staff';
+      return '/staff/dashboard';
     }
     if (role == UserRole.student && location.startsWith('/staff')) {
-      return '/student';
+      return '/student/home';
     }
 
     return null;
