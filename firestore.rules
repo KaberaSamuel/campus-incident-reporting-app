@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isStaff() {
+      return signedIn() && userDoc().data.role == 'staff';
+    }
+
+    function isStudent() {
+      return signedIn() && userDoc().data.role == 'student';
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role in ['student', 'staff']
+        && request.resource.data.keys().hasAll(['email', 'fullName', 'role', 'fcmTokens']);
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role;
+      allow delete: if false;
+    }
+
+    match /incidents/{incidentId} {
+      allow read: if signedIn();
+      allow create: if isStudent()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.status == 'submitted';
+      allow update: if isStaff();
+      allow delete: if isStaff()
+        || (isStudent()
+          && resource.data.reporterId == request.auth.uid
+          && resource.data.status == 'submitted');
+    }
+
+    match /locations/{locationId} {
+      allow read: if signedIn();
+      allow create, update: if isStaff();
+      allow delete: if isStaff();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update: if signedIn()
+        && resource.data.userId == request.auth.uid;
+      allow create: if false;
+      allow delete: if false;
+    }
+  }
+}

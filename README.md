@@ -11,7 +11,11 @@ Android Flutter app for ALU campus incident reporting. See [product.md](./produc
    flutterfire configure
    ```
    This replaces `lib/firebase_options.dart` and `android/app/google-services.json`.
-3. Run on Android: `flutter run`
+3. Deploy Firestore rules and indexes (optional until you use Firestore):
+   ```bash
+   firebase deploy --only firestore
+   ```
+4. Run on Android: `flutter run`
 
 ## App ID
 
