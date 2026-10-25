@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+import '../../../core/constants/incident_constants.dart';
 import '../models/incident.dart';
 import '../models/incident_category.dart';
 import '../models/incident_query_params.dart';
@@ -37,6 +40,21 @@ class IncidentCreateInput {
   final String locationName;
   final String? detailNote;
   final List<String> imageUrls;
+}
+
+class CampusIncidentStats {
+  const CampusIncidentStats({
+    required this.submitted,
+    required this.inProgress,
+    required this.resolved,
+  });
+
+  final int submitted;
+  final int inProgress;
+  final int resolved;
+
+  int get total => submitted + inProgress + resolved;
+  int get open => submitted + inProgress;
 }
 
 class IncidentStaffUpdateInput {
@@ -80,10 +98,52 @@ class IncidentRepository {
   }
 
   Future<String> create(IncidentCreateInput input) async {
+    return createWithImages(input: input, imageBytes: const []);
+  }
+
+  Future<List<String>> uploadIncidentImages({
+    required String incidentId,
+    required List<Uint8List> images,
+  }) async {
+    if (images.length > kMaxIncidentPhotos) {
+      throw IncidentRepositoryException(
+        'You can attach at most $kMaxIncidentPhotos photos.',
+      );
+    }
+    final urls = <String>[];
+    for (var i = 0; i < images.length; i++) {
+      final ref = _storage.ref().child(
+        'incidents/$incidentId/${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+      await ref.putData(
+        images[i],
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      urls.add(await ref.getDownloadURL());
+    }
+    return urls;
+  }
+
+  Future<String> createWithImages({
+    required IncidentCreateInput input,
+    required List<Uint8List> imageBytes,
+  }) async {
+    if (imageBytes.length > kMaxIncidentPhotos) {
+      throw IncidentRepositoryException(
+        'You can attach at most $kMaxIncidentPhotos photos.',
+      );
+    }
+
+    final docRef = _collection.doc();
+    final id = docRef.id;
+    final imageUrls = imageBytes.isEmpty
+        ? <String>[]
+        : await uploadIncidentImages(incidentId: id, images: imageBytes);
+
     final now = DateTime.now();
     final title = input.title.trim();
     final incident = Incident(
-      id: '',
+      id: id,
       reporterId: input.reporterId,
       reporterName: input.reporterName,
       category: input.category,
@@ -93,7 +153,7 @@ class IncidentRepository {
       locationId: input.locationId,
       locationName: input.locationName,
       detailNote: input.detailNote?.trim(),
-      imageUrls: input.imageUrls,
+      imageUrls: imageUrls,
       status: IncidentStatus.submitted,
       createdAt: now,
       updatedAt: now,
@@ -101,8 +161,29 @@ class IncidentRepository {
         StatusHistoryEntry(status: IncidentStatus.submitted, changedAt: now),
       ],
     );
-    final doc = await _collection.add(incident.toFirestore());
-    return doc.id;
+    await docRef.set(incident.toFirestore());
+    return id;
+  }
+
+  Future<CampusIncidentStats> fetchCampusStats() async {
+    final submitted = await _countWhere('status', IncidentStatus.submitted.firestoreValue);
+    final inProgress =
+        await _countWhere('status', IncidentStatus.inProgress.firestoreValue);
+    final resolved = await _countWhere('status', IncidentStatus.resolved.firestoreValue);
+    return CampusIncidentStats(
+      submitted: submitted,
+      inProgress: inProgress,
+      resolved: resolved,
+    );
+  }
+
+  Future<int> _countWhere(String field, String value) async {
+    final snapshot = await _collection.where(field, isEqualTo: value).count().get();
+    return snapshot.count ?? 0;
+  }
+
+  Future<IncidentQueryPage> queryOpenIncidents({int limit = 10}) {
+    return queryIncidents(IncidentQueryParams(openOnly: true, limit: limit));
   }
 
   Future<IncidentQueryPage> queryIncidents(IncidentQueryParams params) async {
@@ -118,7 +199,15 @@ class IncidentRepository {
     if (params.category != null) {
       query = query.where('category', isEqualTo: params.category!.firestoreValue);
     }
-    if (params.status != null) {
+    if (params.openOnly) {
+      query = query.where(
+        'status',
+        whereIn: [
+          IncidentStatus.submitted.firestoreValue,
+          IncidentStatus.inProgress.firestoreValue,
+        ],
+      );
+    } else if (params.status != null) {
       query = query.where('status', isEqualTo: params.status!.firestoreValue);
     }
     if (params.locationId != null && params.locationId!.isNotEmpty) {
@@ -151,18 +240,22 @@ class IncidentRepository {
   Future<void> updateByStaff({
     required String incidentId,
     required IncidentStaffUpdateInput input,
-    required List<StatusHistoryEntry> existingHistory,
   }) async {
+    final current = await getById(incidentId);
+    if (current == null) return;
+
     final now = DateTime.now();
-    final history = List<StatusHistoryEntry>.from(existingHistory);
-    history.add(
-      StatusHistoryEntry(
-        status: input.status,
-        changedAt: now,
-        changedByUid: input.changedByUid,
-        changedByName: input.changedByName,
-      ),
-    );
+    final history = List<StatusHistoryEntry>.from(current.statusHistory);
+    if (current.status != input.status) {
+      history.add(
+        StatusHistoryEntry(
+          status: input.status,
+          changedAt: now,
+          changedByUid: input.changedByUid,
+          changedByName: input.changedByName,
+        ),
+      );
+    }
 
     await _collection.doc(incidentId).update({
       'status': input.status.firestoreValue,

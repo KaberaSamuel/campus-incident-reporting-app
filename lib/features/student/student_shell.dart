@@ -2,20 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class StudentShell extends StatelessWidget {
-  const StudentShell({super.key});
+  const StudentShell({required this.child, super.key});
+
+  final Widget child;
+
+  static const _routes = [
+    '/student/home',
+    '/student/reports',
+    '/student/report',
+    '/student/inbox',
+    '/student/profile',
+  ];
+
+  static const _titles = [
+    'Home',
+    'Reports',
+    'Report',
+    'Inbox',
+    'Profile',
+  ];
+
+  int _selectedIndex(String path) {
+    if (path.startsWith('/student/reports')) return 1;
+    if (path.startsWith('/student/report')) return 2;
+    if (path.startsWith('/student/inbox')) return 3;
+    if (path.startsWith('/student/profile')) return 4;
+    return 0;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final path = GoRouterState.of(context).uri.path;
+    final index = _selectedIndex(path);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Student')),
-      body: const Center(
-        child: Text('Student shell — Home · Reports · Report · Inbox · Profile'),
-      ),
+      appBar: AppBar(title: Text(_titles[index])),
+      body: child,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        onDestinationSelected: (index) {
-          if (index == 4) context.go('/student/profile');
-        },
+        selectedIndex: index,
+        onDestinationSelected: (i) => context.go(_routes[i]),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Reports'),

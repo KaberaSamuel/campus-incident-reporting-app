@@ -12,6 +12,7 @@ class IncidentQueryParams {
     this.status,
     this.locationId,
     this.mineOnly = false,
+    this.openOnly = false,
     this.reporterId,
     this.limit = kIncidentsPageSize,
     this.startAfter,
@@ -22,6 +23,7 @@ class IncidentQueryParams {
   final IncidentStatus? status;
   final String? locationId;
   final bool mineOnly;
+  final bool openOnly;
   final String? reporterId;
   final int limit;
   final DocumentSnapshot<Map<String, dynamic>>? startAfter;
