@@ -17,6 +17,23 @@ service cloud.firestore {
       return signedIn() && userDoc().data.role == 'student';
     }
 
+    function incidentCreateValid() {
+      return request.resource.data.keys().hasAll([
+          'reporterId', 'reporterName', 'category', 'title', 'description',
+          'titleLowercase', 'locationId', 'locationName', 'status',
+          'createdAt', 'updatedAt', 'statusHistory', 'imageUrls'
+        ])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.imageUrls is list
+        && request.resource.data.imageUrls.size() <= 3;
+    }
+
+    function staffIncidentUpdateValid() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'staffNote', 'updatedAt', 'statusHistory']);
+    }
+
     match /users/{userId} {
       allow read: if signedIn() && request.auth.uid == userId;
       allow create: if signedIn()
@@ -25,16 +42,16 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['email', 'fullName', 'role', 'fcmTokens']);
       allow update: if signedIn()
         && request.auth.uid == userId
-        && request.resource.data.role == resource.data.role;
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['fcmTokens', 'email', 'fullName']);
       allow delete: if false;
     }
 
     match /incidents/{incidentId} {
       allow read: if signedIn();
-      allow create: if isStudent()
-        && request.resource.data.reporterId == request.auth.uid
-        && request.resource.data.status == 'submitted';
-      allow update: if isStaff();
+      allow create: if isStudent() && incidentCreateValid();
+      allow update: if isStaff() && staffIncidentUpdateValid();
       allow delete: if isStaff()
         || (isStudent()
           && resource.data.reporterId == request.auth.uid
@@ -49,7 +66,9 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       allow read, update: if signedIn()
-        && resource.data.userId == request.auth.uid;
+        && resource.data.userId == request.auth.uid
+        && (request.method != 'update'
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
       allow create: if false;
       allow delete: if false;
     }
