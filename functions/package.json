@@ -1,0 +1,13 @@
+{
+  "name": "campus-incidents-functions",
+  "description": "FCM and inbox triggers for Campus Incidents",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.3.0"
+  },
+  "private": true
+}

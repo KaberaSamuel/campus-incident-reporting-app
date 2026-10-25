@@ -102,4 +102,12 @@ class AuthRepository {
   Future<void> reloadUser() async {
     await _auth.currentUser?.reload();
   }
+
+  Future<void> saveFcmToken(String token) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    await _firestore.collection('users').doc(uid).update({
+      'fcmTokens': FieldValue.arrayUnion([token]),
+    });
+  }
 }
