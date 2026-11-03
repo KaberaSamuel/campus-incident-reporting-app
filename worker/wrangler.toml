@@ -1,0 +1,16 @@
+name = "campus-incidents-storage"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# R2 bucket must be created first: `wrangler r2 bucket create incident-reporting-app`
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "incident-reporting-app"
+
+[vars]
+FIREBASE_PROJECT_ID = "campus-incident-reporting-app"
+# The r2.dev public URL for the bucket (Cloudflare dashboard -> R2 -> Settings).
+R2_PUBLIC_URL = "https://pub-REPLACE_ME.r2.dev"
+# The same Web API key stored in lib/firebase_options.dart. Not a secret
+# (it ships inside the APK), but keep it out of git anyway.
+# Set with: wrangler secret put FIREBASE_API_KEY

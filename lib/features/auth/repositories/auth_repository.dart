@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/auth_constants.dart';
 import '../../../core/firebase/app_firestore.dart';
@@ -37,9 +38,27 @@ class AuthRepository {
   }
 
   Future<UserProfile?> fetchUserProfile(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (!doc.exists) return null;
-    return UserProfile.fromFirestore(doc);
+    final docRef = _firestore.collection('users').doc(uid);
+    final doc = await docRef.get();
+    if (doc.exists) return UserProfile.fromFirestore(doc);
+
+    // Repair accounts whose profile write never landed (for example when the
+    // Firestore rules were not deployed yet at sign-up time).
+    final user = _auth.currentUser;
+    if (user == null || user.uid != uid || user.email == null) return null;
+
+    final email = user.email!.toLowerCase();
+    final fullName = (user.displayName?.trim().isNotEmpty ?? false)
+        ? user.displayName!.trim()
+        : email.split('@').first;
+    final profile = UserProfile(
+      uid: uid,
+      email: email,
+      fullName: fullName,
+      role: roleFromEmail(email),
+    );
+    await docRef.set(profile.toFirestore());
+    return profile;
   }
 
   Future<void> signUp({
@@ -150,8 +169,17 @@ class AuthRepository {
   Future<void> saveFcmToken(String token) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    await _firestore.collection('users').doc(uid).update({
-      'fcmTokens': FieldValue.arrayUnion([token]),
-    });
+
+    // Make sure users/{uid} exists first. Updating a missing document is
+    // treated by the rules as a create, which the create rule rejects because
+    // the payload has no email/fullName/role.
+    try {
+      await fetchUserProfile(uid);
+      await _firestore.collection('users').doc(uid).update({
+        'fcmTokens': FieldValue.arrayUnion([token]),
+      });
+    } on FirebaseException catch (e) {
+      debugPrint('Could not save FCM token: ${e.message}');
+    }
   }
 }

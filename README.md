@@ -9,7 +9,7 @@ Android Flutter app for ALU campus incident reporting. See [product.md](./produc
 Quick summary:
 
 1. Install [Flutter](https://docs.flutter.dev/get-started/install) (stable) and Android Studio / SDK.
-2. Firebase project **campus-incident-reporting-app**: Android app `com.alu.campus_incidents`, **debug SHA-1**, Email/Password Auth, **Firestore** (database ID must match `kFirestoreDatabaseId` in `lib/core/firebase/app_firestore.dart`), Storage, Blaze for Functions.
+2. Firebase project **campus-incident-reporting-app**: Android app `com.alu.campus_incidents`, **debug SHA-1**, Email/Password Auth, **Firestore** (database ID must match `kFirestoreDatabaseId` in `lib/core/firebase/app_firestore.dart`), Blaze for Functions. Photos use **Cloudflare R2** (see `worker/`), not Firebase Storage.
 3. `flutterfire configure` → updates `lib/firebase_options.dart` and `android/app/google-services.json`.
 4. `firebase deploy --only firestore,storage` then `firebase deploy --only functions` (after `cd functions && npm install`).
 5. `flutter pub get` && `flutter run`.
@@ -49,4 +49,5 @@ Staff should add at least one **location** before students can submit reports.
 
 - `lib/` — Flutter app (Provider, `go_router`, feature folders)
 - `functions/` — Firestore triggers for FCM + `notifications` collection
-- `firestore.rules`, `storage.rules`, `firestore.indexes.json`
+- `worker/` — Cloudflare Worker that authorizes Cloudflare R2 photo uploads
+- `firestore.rules`, `firestore.indexes.json`

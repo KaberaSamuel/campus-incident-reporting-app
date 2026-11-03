@@ -50,3 +50,8 @@ app.*.map.json
 # Firebase client config (per-developer; run `flutterfire configure`)
 /lib/firebase_options.dart
 /android/app/google-services.json
+
+# Cloudflare Worker (worker/)
+/worker/node_modules/
+/worker/.wrangler/
+/worker/.dev.vars

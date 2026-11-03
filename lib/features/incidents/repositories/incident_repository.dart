@@ -2,10 +2,9 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../../core/firebase/app_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-
 import '../../../core/constants/incident_constants.dart';
+import '../../../core/firebase/app_firestore.dart';
+import '../../../core/services/image_storage_service.dart';
 import '../models/incident.dart';
 import '../models/incident_category.dart';
 import '../models/incident_query_params.dart';
@@ -76,12 +75,12 @@ class IncidentStaffUpdateInput {
 class IncidentRepository {
   IncidentRepository({
     FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
+    ImageStorageService? imageStorage,
   })  : _firestore = firestore ?? appFirestore(),
-        _storage = storage ?? FirebaseStorage.instance;
+        _imageStorage = imageStorage ?? ImageStorageService();
 
   final FirebaseFirestore _firestore;
-  final FirebaseStorage _storage;
+  final ImageStorageService _imageStorage;
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection('incidents');
@@ -114,14 +113,11 @@ class IncidentRepository {
     }
     final urls = <String>[];
     for (var i = 0; i < images.length; i++) {
-      final ref = _storage.ref().child(
-        'incidents/$incidentId/${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-      await ref.putData(
-        images[i],
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      urls.add(await ref.getDownloadURL());
+      urls.add(await _imageStorage.upload(
+        incidentId: incidentId,
+        bytes: images[i],
+        index: i,
+      ));
     }
     return urls;
   }
@@ -294,11 +290,7 @@ class IncidentRepository {
 
   Future<void> _deleteStorageImages(List<String> urls) async {
     for (final url in urls) {
-      try {
-        await _storage.refFromURL(url).delete();
-      } catch (_) {
-        // Best-effort cleanup; incident doc is already removed.
-      }
+      await _imageStorage.deleteByUrl(url);
     }
   }
 }

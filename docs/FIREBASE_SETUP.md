@@ -11,7 +11,7 @@ Follow these steps in order. Skipping Firestore or using the wrong **database ID
 
 1. Open [Firebase Console](https://console.firebase.google.com/).
 2. Use project **campus-incident-reporting-app** (or create it and re-run `flutterfire configure` — see step 3).
-3. Upgrade to the **Blaze (pay-as-you-go)** plan if you will deploy **Cloud Functions** (notifications). Firestore/Auth/Storage work on Spark for development.
+3. Upgrade to the **Blaze (pay-as-you-go)** plan only if you will deploy **Cloud Functions** (notifications). Firestore and Auth work on Spark. Photos go to Cloudflare R2, so Firebase Storage is never needed.
 
 ---
 
@@ -98,7 +98,7 @@ your database was created in **MongoDB compatibility** mode (Firestore Studio sh
 2. Choose **Standard** (Native) — **not** MongoDB compatibility.
 3. Database ID: **`(default)`** (recommended).
 4. Leave `kFirestoreDatabaseId = '(default)'` in `lib/core/firebase/app_firestore.dart`.
-5. `firebase deploy --only firestore,storage` (see step 7).
+5. `firebase deploy --only firestore` (see step 7).
 6. Full restart: `flutter run`.
 
 You can ignore or delete the old MongoDB-mode `campus-incidents-db` for this app; it will never work with `cloud_firestore`.
@@ -107,27 +107,28 @@ Empty collections are normal until someone registers or staff adds locations.
 
 ---
 
-## 6. Storage
+## 6. Photo storage (Cloudflare R2)
 
-1. Firebase Console → **Build** → **Storage** → **Get started**.
-2. Use the default bucket (`campus-incident-reporting-app.firebasestorage.app`).
-3. Deploy rules from this repo (step 7).
+Incident photos are **not** stored in Firebase Storage, because that requires the
+Blaze billing plan. They go to a **Cloudflare R2** bucket through a Worker that
+authorizes uploads. Nothing to do in the Firebase console here — follow
+[`worker/README.md`](../worker/README.md).
 
 ---
 
-## 7. Deploy Firestore & Storage rules (CLI)
+## 7. Deploy Firestore rules and indexes (CLI)
 
 Install [Firebase CLI](https://firebase.google.com/docs/cli), then from the **repo root**:
 
 ```bash
 firebase login
 firebase use campus-incident-reporting-app
-firebase deploy --only firestore,storage
+firebase deploy --only firestore
 ```
 
-If `firebase use` fails, run `firebase init` and choose the existing project; keep `firestore.rules` and `storage.rules` from the repo.
+If `firebase use` fails, run `firebase init` and choose the existing project; keep `firestore.rules` and `firestore.indexes.json` from the repo.
 
-**Multiple Firestore databases:** rules deploy to the database selected in `firebase.json`. If you only use `campus-incidents-db`, you may need a `firebase.json` `firestore` block with `"database": "campus-incidents-db"`. For `(default)`, the repo’s default config is enough.
+**Database target:** `firebase.json` → `firestore.database` must match the database ID the app uses (`kFirestoreDatabaseId`). This repo uses `"(default)"`. If it points at a database that does not exist, `firebase deploy --only firestore` tries to *create* it (needs Blaze billing) and the rules never reach the database the app actually reads — every query then fails with `PERMISSION_DENIED: Missing or insufficient permissions.`
 
 ---
 
@@ -161,7 +162,7 @@ flutter run
 | SHA-1 on Android app | Project settings → Your apps |
 | Email/Password enabled | Authentication |
 | Firestore database ID matches `kFirestoreDatabaseId` | Firestore + `app_firestore.dart` |
-| Rules deployed | `firebase deploy --only firestore,storage` |
+| Rules deployed | `firebase deploy --only firestore` |
 | User can register | Authentication → Users appears |
 | Profile document | Firestore → `users/{uid}` after sign-up |
 
@@ -171,6 +172,7 @@ flutter run
 
 | Log message | Fix |
 | ----------- | --- |
+| `PERMISSION_DENIED: Missing or insufficient permissions.` on every read/write | Rules are not deployed to the database the app uses. Run `firebase deploy --only firestore:rules` and confirm `firebase.json` → `firestore.database` matches `kFirestoreDatabaseId`. |
 | `database (default) does not exist` | Create a **Native** Firestore DB with ID `(default)` (or set `kFirestoreDatabaseId` to another **Native** DB ID). |
 | `Native mode API is disabled` / `Listen queries are not supported` | Database is **MongoDB compatibility** — create a new **Standard / Native** database; mode cannot be changed. |
 | `Cloud Firestore API has not been used` / disabled | [Enable Firestore API](https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=campus-incident-reporting-app), wait ~2 minutes. |

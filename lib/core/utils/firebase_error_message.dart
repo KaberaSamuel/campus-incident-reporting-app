@@ -1,6 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/image_storage_service.dart';
+
 String friendlyFirebaseAuthMessage(Object error) {
+  if (error is ImageStorageException) {
+    return error.message;
+  }
   if (error is FirebaseAuthException) {
     final message = error.message ?? '';
     if (message.contains('CONFIGURATION_NOT_FOUND')) {

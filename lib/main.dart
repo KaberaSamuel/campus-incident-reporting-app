@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'core/router/app_router.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/image_storage_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/repositories/auth_repository.dart';
 import 'features/incidents/repositories/incident_repository.dart';
@@ -20,7 +21,9 @@ Future<void> main() async {
 
   final authRepository = AuthRepository();
   final authProvider = AuthProvider(authRepository);
-  final incidentRepository = IncidentRepository();
+  final imageStorageService = ImageStorageService();
+  final incidentRepository =
+      IncidentRepository(imageStorage: imageStorageService);
   final locationRepository = LocationRepository();
   final notificationRepository = NotificationRepository();
   final appRouter = AppRouter(authProvider: authProvider);
@@ -36,6 +39,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         Provider<AuthRepository>.value(value: authRepository),
+        Provider<ImageStorageService>.value(value: imageStorageService),
         Provider<IncidentRepository>.value(value: incidentRepository),
         Provider<LocationRepository>.value(value: locationRepository),
         Provider<NotificationRepository>.value(value: notificationRepository),

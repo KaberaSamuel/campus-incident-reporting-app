@@ -2,9 +2,8 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json",
-    "database": "campus-incidents-db"
+    "database": "(default)"
   },
-  "storage": { "rules": "storage.rules" },
   "functions": [
     {
       "source": "functions",

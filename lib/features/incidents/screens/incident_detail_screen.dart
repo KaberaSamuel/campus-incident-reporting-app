@@ -185,6 +185,12 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                         width: 120,
                         height: 120,
                         fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 120,
+                          height: 120,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          child: const Icon(Icons.broken_image_outlined),
+                        ),
                       ),
                     ),
                   ),
