@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/firebase/app_firestore.dart';
+
 import '../models/location.dart';
 
 class LocationRepositoryException implements Exception {
@@ -12,7 +14,7 @@ class LocationRepositoryException implements Exception {
 
 class LocationRepository {
   LocationRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? appFirestore();
 
   final FirebaseFirestore _firestore;
 

@@ -19,14 +19,18 @@ class AuthProvider extends ChangeNotifier {
   UserProfile? profile;
 
   bool get isSignedIn => user != null;
-  bool get isEmailVerified => user?.emailVerified ?? false;
-
   Future<void> _onAuthUserChanged(User? firebaseUser) async {
     user = firebaseUser;
     if (firebaseUser == null) {
       profile = null;
     } else {
-      profile = await _repository.fetchUserProfile(firebaseUser.uid);
+      try {
+        profile = await _repository
+            .fetchUserProfile(firebaseUser.uid)
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {
+        profile = null;
+      }
     }
     isBootstrapping = false;
     notifyListeners();
@@ -62,10 +66,20 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() => _repository.signOut();
 
-  Future<void> sendPasswordReset(String email) =>
-      _repository.sendPasswordReset(email);
+  Future<void> resetPassword({
+    required String email,
+    required String newPassword,
+  }) =>
+      _repository.resetPassword(email: email, newPassword: newPassword);
 
-  Future<void> sendEmailVerification() => _repository.sendEmailVerification();
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) =>
+      _repository.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
 
   Future<void> refreshUser() async {
     await _repository.reloadUser();

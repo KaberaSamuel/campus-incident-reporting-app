@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/constants/auth_constants.dart';
+import '../../../core/firebase/app_firestore.dart';
 import '../../profile/models/user_profile.dart';
 import '../../profile/models/user_role.dart';
 
@@ -10,7 +12,7 @@ class AuthRepository {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
   })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+        _firestore = firestore ?? appFirestore();
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -74,7 +76,6 @@ class AuthRepository {
       role: role,
     );
     await _firestore.collection('users').doc(user.uid).set(profile.toFirestore());
-    await user.sendEmailVerification();
   }
 
   Future<void> signIn({
@@ -89,14 +90,57 @@ class AuthRepository {
 
   Future<void> signOut() => _auth.signOut();
 
-  Future<void> sendPasswordReset(String email) {
-    return _auth.sendPasswordResetEmail(email: email.trim().toLowerCase());
+  Future<void> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    roleFromEmail(normalizedEmail);
+    if (newPassword.length < 6) {
+      throw FirebaseAuthException(
+        code: 'weak-password',
+        message: 'Choose a stronger password (at least 6 characters).',
+      );
+    }
+    try {
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('resetSchoolPassword');
+      await callable.call<void>({
+        'email': normalizedEmail,
+        'newPassword': newPassword,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw FirebaseAuthException(
+        code: e.code,
+        message: e.message ?? 'Could not reset password.',
+      );
+    }
   }
 
-  Future<void> sendEmailVerification() async {
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
     final user = _auth.currentUser;
-    if (user == null) return;
-    await user.sendEmailVerification();
+    final email = user?.email;
+    if (user == null || email == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'Sign in to change your password.',
+      );
+    }
+    if (newPassword.length < 6) {
+      throw FirebaseAuthException(
+        code: 'weak-password',
+        message: 'Choose a stronger password (at least 6 characters).',
+      );
+    }
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(newPassword);
   }
 
   Future<void> reloadUser() async {

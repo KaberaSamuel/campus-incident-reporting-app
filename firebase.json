@@ -1,11 +1,10 @@
 {
   "firestore": {
     "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "indexes": "firestore.indexes.json",
+    "database": "campus-incidents-db"
   },
-  "storage": {
-    "rules": "storage.rules"
-  },
+  "storage": { "rules": "storage.rules" },
   "functions": [
     {
       "source": "functions",
@@ -17,5 +16,24 @@
         "firebase-debug.*.log"
       ]
     }
-  ]
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "campus-incident-reporting-app",
+          "appId": "1:683137735051:android:3409e30372300867ab378e",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "campus-incident-reporting-app",
+          "configurations": {
+            "android": "1:683137735051:android:3409e30372300867ab378e"
+          }
+        }
+      }
+    }
+  }
 }

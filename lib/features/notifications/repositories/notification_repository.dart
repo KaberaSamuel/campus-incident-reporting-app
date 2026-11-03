@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/firebase/app_firestore.dart';
+
 import '../models/app_notification.dart';
 
 class NotificationRepository {
   NotificationRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? appFirestore();
 
   final FirebaseFirestore _firestore;
 

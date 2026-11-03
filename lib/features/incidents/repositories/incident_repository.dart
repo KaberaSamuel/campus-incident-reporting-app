@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../../core/firebase/app_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../../core/constants/incident_constants.dart';
@@ -75,7 +77,7 @@ class IncidentRepository {
   IncidentRepository({
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+  })  : _firestore = firestore ?? appFirestore(),
         _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseFirestore _firestore;

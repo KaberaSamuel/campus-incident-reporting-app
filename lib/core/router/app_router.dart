@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
-import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/auth/models/auth_audience.dart';
+import '../../features/auth/screens/auth_entry_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
+import '../../features/auth/screens/reset_password_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
-import '../../features/auth/screens/verify_email_screen.dart';
+import '../../features/profile/screens/change_password_screen.dart';
 import '../../features/incidents/screens/incident_detail_screen.dart';
 import '../../features/incidents/screens/incident_list_screen.dart';
 import '../../features/locations/screens/manage_locations_screen.dart';
@@ -34,24 +36,42 @@ class AppRouter {
           builder: (context, state) => const SplashScreen(),
         ),
         GoRoute(
+          path: '/login/student',
+          builder: (context, state) =>
+              const LoginScreen(audience: AuthAudience.student),
+        ),
+        GoRoute(
+          path: '/login/instructor',
+          builder: (context, state) =>
+              const LoginScreen(audience: AuthAudience.instructor),
+        ),
+        GoRoute(
           path: '/login',
           name: 'login',
-          builder: (context, state) => const LoginScreen(),
+          builder: (context, state) => const AuthEntryScreen(),
+        ),
+        GoRoute(
+          path: '/register/student',
+          builder: (context, state) =>
+              const RegisterScreen(audience: AuthAudience.student),
+        ),
+        GoRoute(
+          path: '/register/instructor',
+          builder: (context, state) =>
+              const RegisterScreen(audience: AuthAudience.instructor),
         ),
         GoRoute(
           path: '/register',
-          name: 'register',
-          builder: (context, state) => const RegisterScreen(),
+          redirect: (context, state) => '/login',
         ),
         GoRoute(
-          path: '/forgot-password',
-          name: 'forgotPassword',
-          builder: (context, state) => const ForgotPasswordScreen(),
+          path: '/reset-password',
+          name: 'resetPassword',
+          builder: (context, state) => const ResetPasswordScreen(),
         ),
         GoRoute(
-          path: '/verify-email',
-          name: 'verifyEmail',
-          builder: (context, state) => const VerifyEmailScreen(),
+          path: '/change-password',
+          builder: (context, state) => const ChangePasswordScreen(),
         ),
         GoRoute(
           path: '/student',
@@ -157,7 +177,12 @@ class AppRouter {
   final AuthProvider _auth;
   late final GoRouter router;
 
-  static const _publicPaths = {'/login', '/register', '/forgot-password'};
+  static bool _isPublicAuthPath(String location) {
+    if (location == '/login' || location == '/reset-password') return true;
+    if (location.startsWith('/login/')) return true;
+    if (location.startsWith('/register/')) return true;
+    return false;
+  }
 
   String? _redirect(BuildContext context, GoRouterState state) {
     final location = state.matchedLocation;
@@ -168,21 +193,17 @@ class AppRouter {
     }
 
     if (!_auth.isSignedIn) {
-      if (_publicPaths.contains(location)) return null;
+      if (location == '/change-password') return '/login';
+      if (_isPublicAuthPath(location)) return null;
       return '/login';
-    }
-
-    if (!_auth.isEmailVerified) {
-      if (location == '/verify-email') return null;
-      return '/verify-email';
     }
 
     final role = _auth.profile?.role ?? UserRole.student;
     final home = role == UserRole.staff ? '/staff/dashboard' : '/student/home';
 
-    if (_publicPaths.contains(location) ||
-        location == '/verify-email' ||
-        location == '/') {
+    if (location == '/change-password') return null;
+
+    if (_isPublicAuthPath(location) || location == '/') {
       return home;
     }
 

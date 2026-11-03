@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../auth/providers/auth_provider.dart';
@@ -33,6 +34,11 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: Text(roleLabel),
                 ),
                 const SizedBox(height: 24),
+                OutlinedButton(
+                  onPressed: () => context.push('/change-password'),
+                  child: const Text('Change password'),
+                ),
+                const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () => auth.signOut(),
                   child: const Text('Sign out'),

@@ -25,12 +25,20 @@ class FcmService {
       _handleMessage(initial);
     }
 
-    final token = await messaging.getToken();
-    if (token != null) {
-      await _authRepository.saveFcmToken(token);
+    try {
+      final token = await messaging.getToken();
+      if (token != null) {
+        await _authRepository.saveFcmToken(token);
+      }
+      FirebaseMessaging.instance.onTokenRefresh
+          .listen(_authRepository.saveFcmToken);
+    } catch (e, st) {
+      debugPrint(
+        'FCM token setup failed. Run `dart pub global run '
+        'flutterfire_cli:flutterfire configure` with your Firebase project '
+        'if you have not already.\n$e\n$st',
+      );
     }
-
-    FirebaseMessaging.instance.onTokenRefresh.listen(_authRepository.saveFcmToken);
   }
 
   Future<void> _handleMessage(RemoteMessage message) async {

@@ -2,26 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/auth_constants.dart';
 import '../../../core/utils/firebase_error_message.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/centered_auth_form.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+class ResetPasswordScreen extends StatefulWidget {
+  const ResetPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
   bool _isSubmitting = false;
   String? _error;
-  bool _sent = false;
+  bool _done = false;
 
   @override
   void dispose() {
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
@@ -32,8 +38,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _error = null;
     });
     try {
-      await context.read<AuthProvider>().sendPasswordReset(_emailController.text);
-      setState(() => _sent = true);
+      await context.read<AuthProvider>().resetPassword(
+            email: _emailController.text,
+            newPassword: _passwordController.text,
+          );
+      setState(() => _done = true);
     } catch (e) {
       setState(() => _error = friendlyFirebaseAuthMessage(e));
     } finally {
@@ -41,21 +50,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
+  String? _validateEmail(String? value) {
+    final email = value?.trim().toLowerCase() ?? '';
+    if (email.isEmpty) return 'Enter your email';
+    if (!email.endsWith(kStudentEmailSuffix) && !email.endsWith(kStaffEmailSuffix)) {
+      return 'Use $kStudentEmailSuffix or $kStaffEmailSuffix';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Forgot password')),
+      appBar: AppBar(title: const Text('Reset password')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: _sent
+        child: CenteredAuthForm(
+          child: _done
               ? Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.mark_email_read_outlined, size: 48),
+                    const Icon(Icons.check_circle_outline, size: 48),
                     const SizedBox(height: 16),
                     const Text(
-                      'If an account exists for that email, a reset link has been sent.',
+                      'Password updated. Sign in with your email and new password.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
@@ -68,17 +86,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               : Form(
                   key: _formKey,
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text('Enter your account email to receive a reset link.'),
+                      const Text(
+                        'Enter the email you used to register and choose a new password.',
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 24),
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         decoration: const InputDecoration(labelText: 'Email'),
+                        validator: _validateEmail,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(labelText: 'New password'),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Enter your email';
+                          if (value == null || value.length < 6) {
+                            return 'At least 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _confirmController,
+                        obscureText: true,
+                        decoration: const InputDecoration(labelText: 'Confirm password'),
+                        validator: (value) {
+                          if (value != _passwordController.text) {
+                            return 'Passwords do not match';
                           }
                           return null;
                         },
@@ -99,7 +140,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Text('Send reset email'),
+                            : const Text('Update password'),
                       ),
                     ],
                   ),

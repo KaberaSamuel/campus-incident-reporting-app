@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/constants/auth_constants.dart';
 import '../../../core/utils/firebase_error_message.dart';
+import '../../profile/models/user_role.dart';
+import '../models/auth_audience.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/centered_auth_form.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, required this.audience});
+
+  final AuthAudience audience;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -27,6 +31,15 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  String? _validateEmail(String? value) {
+    final email = value?.trim().toLowerCase() ?? '';
+    if (email.isEmpty) return 'Enter your email';
+    if (!email.endsWith(widget.audience.emailSuffix)) {
+      return widget.audience.wrongEmailDomainMessage();
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -34,10 +47,22 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await context.read<AuthProvider>().signIn(
-            email: _emailController.text,
-            password: _passwordController.text,
-          );
+      final auth = context.read<AuthProvider>();
+      await auth.signIn(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+      final role = auth.profile?.role;
+      final expected = widget.audience.userRole;
+      if (role != expected) {
+        await auth.signOut();
+        setState(() {
+          _error = role == UserRole.staff
+              ? 'This account is for instructors. Use instructor sign in.'
+              : 'This account is for students. Use student sign in.';
+        });
+        return;
+      }
     } catch (e) {
       setState(() => _error = friendlyFirebaseAuthMessage(e));
     } finally {
@@ -47,32 +72,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final segment = widget.audience.routeSegment;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sign in')),
+      appBar: AppBar(title: Text(widget.audience.signInTitle)),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+        child: CenteredAuthForm(
           child: Form(
             key: _formKey,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Use your ALU email ($kStudentEmailSuffix or $kStaffEmailSuffix).',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 24),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
                   decoration: const InputDecoration(labelText: 'Email'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Enter your email';
-                    }
-                    return null;
-                  },
+                  validator: _validateEmail,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -89,14 +105,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
-                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  Text(
+                    _error!,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
                 ],
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
-                    child: const Text('Forgot password?'),
+                    onPressed: () => context.push('/reset-password'),
+                    child: const Text('Reset password'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -112,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton(
-                  onPressed: () => context.push('/register'),
+                  onPressed: () => context.push('/register/$segment'),
                   child: const Text('Create an account'),
                 ),
               ],

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/constants/auth_constants.dart';
 import '../../../core/utils/firebase_error_message.dart';
+import '../models/auth_audience.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/centered_auth_form.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, required this.audience});
+
+  final AuthAudience audience;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -49,14 +53,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final segment = widget.audience.routeSegment;
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
+      appBar: AppBar(title: Text(widget.audience.registerTitle)),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+        child: CenteredAuthForm(
           child: Form(
             key: _formKey,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextFormField(
@@ -78,9 +83,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   validator: (value) {
                     final email = value?.trim().toLowerCase() ?? '';
                     if (email.isEmpty) return 'Enter your email';
-                    if (!email.endsWith(kStudentEmailSuffix) &&
-                        !email.endsWith(kStaffEmailSuffix)) {
-                      return 'Use $kStudentEmailSuffix or $kStaffEmailSuffix';
+                    if (!email.endsWith(widget.audience.emailSuffix)) {
+                      return widget.audience.wrongEmailDomainMessage();
                     }
                     return null;
                   },
@@ -99,7 +103,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
-                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  Text(
+                    _error!,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
                 ],
                 const SizedBox(height: 24),
                 FilledButton(
@@ -111,6 +118,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Sign up'),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => context.push('/login/$segment'),
+                  child: const Text('Already have an account? Sign in'),
                 ),
               ],
             ),
