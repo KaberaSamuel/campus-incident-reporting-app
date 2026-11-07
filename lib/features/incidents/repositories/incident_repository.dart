@@ -76,14 +76,26 @@ class IncidentRepository {
   IncidentRepository({
     FirebaseFirestore? firestore,
     ImageStorageService? imageStorage,
-  })  : _firestore = firestore ?? appFirestore(),
-        _imageStorage = imageStorage ?? ImageStorageService();
+  }) : _firestore = firestore ?? appFirestore(),
+       _imageStorage = imageStorage ?? ImageStorageService();
 
   final FirebaseFirestore _firestore;
   final ImageStorageService _imageStorage;
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection('incidents');
+
+  /// Emits whenever any incident is created, updated or deleted, so list and
+  /// dashboard screens can refresh without a manual pull. The first event
+  /// (the current state) is skipped.
+  Stream<void> watchChanges() {
+    return _collection
+        .orderBy('updatedAt', descending: true)
+        .limit(1)
+        .snapshots()
+        .skip(1)
+        .map((_) {});
+  }
 
   Stream<Incident?> watchById(String id) {
     return _collection.doc(id).snapshots().map((doc) {
@@ -113,11 +125,13 @@ class IncidentRepository {
     }
     final urls = <String>[];
     for (var i = 0; i < images.length; i++) {
-      urls.add(await _imageStorage.upload(
-        incidentId: incidentId,
-        bytes: images[i],
-        index: i,
-      ));
+      urls.add(
+        await _imageStorage.upload(
+          incidentId: incidentId,
+          bytes: images[i],
+          index: i,
+        ),
+      );
     }
     return urls;
   }
@@ -159,15 +173,37 @@ class IncidentRepository {
         StatusHistoryEntry(status: IncidentStatus.submitted, changedAt: now),
       ],
     );
-    await docRef.set(incident.toFirestore());
+    // One shared notification for all staff (Cloud Functions need the paid
+    // plan, and students cannot look up individual staff accounts).
+    final batch = _firestore.batch();
+    batch.set(docRef, incident.toFirestore());
+    batch.set(_firestore.collection('notifications').doc(), {
+      'audience': 'staff',
+      'type': 'new_incident',
+      'title': 'New campus report',
+      'body': '${input.reporterName}: $title',
+      'incidentId': id,
+      'reporterId': input.reporterId,
+      'readBy': <String>[],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
     return id;
   }
 
   Future<CampusIncidentStats> fetchCampusStats() async {
-    final submitted = await _countWhere('status', IncidentStatus.submitted.firestoreValue);
-    final inProgress =
-        await _countWhere('status', IncidentStatus.inProgress.firestoreValue);
-    final resolved = await _countWhere('status', IncidentStatus.resolved.firestoreValue);
+    final submitted = await _countWhere(
+      'status',
+      IncidentStatus.submitted.firestoreValue,
+    );
+    final inProgress = await _countWhere(
+      'status',
+      IncidentStatus.inProgress.firestoreValue,
+    );
+    final resolved = await _countWhere(
+      'status',
+      IncidentStatus.resolved.firestoreValue,
+    );
     return CampusIncidentStats(
       submitted: submitted,
       inProgress: inProgress,
@@ -176,7 +212,10 @@ class IncidentRepository {
   }
 
   Future<int> _countWhere(String field, String value) async {
-    final snapshot = await _collection.where(field, isEqualTo: value).count().get();
+    final snapshot = await _collection
+        .where(field, isEqualTo: value)
+        .count()
+        .get();
     return snapshot.count ?? 0;
   }
 
@@ -185,8 +224,11 @@ class IncidentRepository {
   }
 
   Future<IncidentQueryPage> queryIncidents(IncidentQueryParams params) async {
-    if (params.mineOnly && (params.reporterId == null || params.reporterId!.isEmpty)) {
-      throw IncidentRepositoryException('reporterId is required when mineOnly is true.');
+    if (params.mineOnly &&
+        (params.reporterId == null || params.reporterId!.isEmpty)) {
+      throw IncidentRepositoryException(
+        'reporterId is required when mineOnly is true.',
+      );
     }
 
     Query<Map<String, dynamic>> query = _collection;
@@ -195,7 +237,10 @@ class IncidentRepository {
       query = query.where('reporterId', isEqualTo: params.reporterId);
     }
     if (params.category != null) {
-      query = query.where('category', isEqualTo: params.category!.firestoreValue);
+      query = query.where(
+        'category',
+        isEqualTo: params.category!.firestoreValue,
+      );
     }
     if (params.openOnly) {
       query = query.where(
@@ -255,12 +300,41 @@ class IncidentRepository {
       );
     }
 
-    await _collection.doc(incidentId).update({
+    final newNote = input.staffNote?.trim();
+    final noteChanged =
+        (newNote ?? '').isNotEmpty &&
+        newNote != (current.staffNote ?? '').trim();
+    final statusChanged = current.status != input.status;
+
+    final batch = _firestore.batch();
+    batch.update(_collection.doc(incidentId), {
       'status': input.status.firestoreValue,
       'staffNote': input.staffNote,
       'updatedAt': Timestamp.fromDate(now),
       'statusHistory': history.map((e) => e.toMap()).toList(),
     });
+
+    // Cloud Functions need the paid Blaze plan, so the in-app notification is
+    // written here, in the same batch as the update, for the reporter.
+    if ((statusChanged || noteChanged) && current.reporterId.isNotEmpty) {
+      final title = statusChanged
+          ? 'Report status updated'
+          : 'Staff added a note';
+      final parts = <String>[
+        if (statusChanged) 'Status is now ${input.status.label}.',
+        if (noteChanged) 'Note: $newNote',
+      ];
+      batch.set(_firestore.collection('notifications').doc(), {
+        'userId': current.reporterId,
+        'type': statusChanged ? 'status_update' : 'staff_note',
+        'title': title,
+        'body': '${current.title} - ${parts.join(' ')}',
+        'incidentId': incidentId,
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
   }
 
   Future<void> deleteForStudent({
@@ -270,7 +344,9 @@ class IncidentRepository {
     final incident = await getById(incidentId);
     if (incident == null) return;
     if (incident.reporterId != uid) {
-      throw IncidentRepositoryException('You can only delete your own reports.');
+      throw IncidentRepositoryException(
+        'You can only delete your own reports.',
+      );
     }
     if (incident.status != IncidentStatus.submitted) {
       throw IncidentRepositoryException(

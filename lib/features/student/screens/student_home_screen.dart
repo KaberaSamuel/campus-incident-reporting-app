@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -23,30 +25,45 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   List<Incident> _recent = [];
   String? _error;
   bool _loading = true;
+  StreamSubscription<void>? _changes;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _changes = context
+        .read<IncidentRepository>()
+        .watchChanges()
+        .listen((_) => _load(silent: true));
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _changes?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final repo = context.read<IncidentRepository>();
       final stats = await repo.fetchCampusStats();
       final recent = await repo.queryIncidents(
         const IncidentQueryParams(limit: 5),
       );
+      if (!mounted) return;
       setState(() {
         _stats = stats;
         _recent = recent.incidents;
         _loading = false;
       });
     } catch (e) {
+      if (silent || !mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;

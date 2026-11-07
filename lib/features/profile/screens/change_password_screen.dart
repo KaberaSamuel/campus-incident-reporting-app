@@ -1,3 +1,5 @@
+import '../../../core/widgets/password_form_field.dart';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -37,13 +39,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     });
     try {
       await context.read<AuthProvider>().changePassword(
-            currentPassword: _currentController.text,
-            newPassword: _newController.text,
-          );
+        currentPassword: _currentController.text,
+        newPassword: _newController.text,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Password updated')));
         context.pop();
       }
     } catch (e) {
@@ -65,10 +66,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextFormField(
+                PasswordFormField(
                   controller: _currentController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Current password'),
+
+                  label: 'Current password',
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Enter your current password';
@@ -77,10 +78,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
+                PasswordFormField(
                   controller: _newController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'New password'),
+
+                  label: 'New password',
                   validator: (value) {
                     if (value == null || value.length < 6) {
                       return 'At least 6 characters';
@@ -89,10 +90,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
+                PasswordFormField(
                   controller: _confirmController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Confirm new password'),
+
+                  label: 'Confirm new password',
                   validator: (value) {
                     if (value != _newController.text) {
                       return 'Passwords do not match';
@@ -104,7 +105,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   const SizedBox(height: 16),
                   Text(
                     _error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 24),

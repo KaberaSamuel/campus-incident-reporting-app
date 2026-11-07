@@ -1,4 +1,4 @@
-name = "campus-incidents-storage"
+name = "storage"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
 
@@ -10,7 +10,5 @@ bucket_name = "incident-reporting-app"
 [vars]
 FIREBASE_PROJECT_ID = "campus-incident-reporting-app"
 # The r2.dev public URL for the bucket (Cloudflare dashboard -> R2 -> Settings).
-R2_PUBLIC_URL = "https://pub-REPLACE_ME.r2.dev"
-# The same Web API key stored in lib/firebase_options.dart. Not a secret
-# (it ships inside the APK), but keep it out of git anyway.
-# Set with: wrangler secret put FIREBASE_API_KEY
+R2_PUBLIC_URL = "https://pub-57208281b66d433b9dc1243f61b97094.r2.dev"
+

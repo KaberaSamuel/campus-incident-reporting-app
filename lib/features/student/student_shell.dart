@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../notifications/widgets/inbox_nav_icon.dart';
+
 class StudentShell extends StatelessWidget {
   const StudentShell({required this.child, super.key});
 
@@ -14,13 +16,7 @@ class StudentShell extends StatelessWidget {
     '/student/profile',
   ];
 
-  static const _titles = [
-    'Home',
-    'Reports',
-    'Report',
-    'Inbox',
-    'Profile',
-  ];
+  static const _titles = ['Home', 'Reports', 'Report', 'Inbox', 'Profile'];
 
   int _selectedIndex(String path) {
     if (path.startsWith('/student/reports')) return 1;
@@ -41,12 +37,25 @@ class StudentShell extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => context.go(_routes[i]),
-        destinations: const [
+        destinations: [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Reports'),
-          NavigationDestination(icon: Icon(Icons.add_circle_outline), label: 'Report'),
-          NavigationDestination(icon: Icon(Icons.inbox_outlined), label: 'Inbox'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            label: 'Reports',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_circle_outline),
+            label: 'Report',
+          ),
+          NavigationDestination(
+            icon: InboxNavIcon(),
+            selectedIcon: InboxNavIcon(selected: true),
+            label: 'Inbox',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
         ],
       ),
     );

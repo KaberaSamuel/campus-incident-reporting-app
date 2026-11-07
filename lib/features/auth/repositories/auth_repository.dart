@@ -9,11 +9,9 @@ import '../../profile/models/user_profile.dart';
 import '../../profile/models/user_role.dart';
 
 class AuthRepository {
-  AuthRepository({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? appFirestore();
+  AuthRepository({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? appFirestore();
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -94,13 +92,26 @@ class AuthRepository {
       fullName: trimmedName,
       role: role,
     );
-    await _firestore.collection('users').doc(user.uid).set(profile.toFirestore());
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .set(profile.toFirestore());
+    await sendVerificationEmail();
   }
 
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  /// Sends (or re-sends) the Firebase verification email to the signed-in user.
+  Future<void> sendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'Sign in to verify your email.',
+      );
+    }
+    await user.sendEmailVerification();
+  }
+
+  Future<void> signIn({required String email, required String password}) async {
     await _auth.signInWithEmailAndPassword(
       email: email.trim().toLowerCase(),
       password: password,
@@ -122,8 +133,9 @@ class AuthRepository {
       );
     }
     try {
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('resetSchoolPassword');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'resetSchoolPassword',
+      );
       await callable.call<void>({
         'email': normalizedEmail,
         'newPassword': newPassword,

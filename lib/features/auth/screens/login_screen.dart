@@ -1,3 +1,6 @@
+import '../../../core/widgets/password_form_field.dart';
+
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -48,6 +51,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       final auth = context.read<AuthProvider>();
+      // Must run before signing in: a successful sign-in navigates away and
+      // disposes this form, which would cancel the "Save password?" prompt.
+      TextInput.finishAutofillContext();
       await auth.signIn(
         email: _emailController.text,
         password: _passwordController.text,
@@ -77,64 +83,74 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(title: Text(widget.audience.signInTitle)),
       body: SafeArea(
         child: CenteredAuthForm(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  validator: _validateEmail,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  autofillHints: const [AutofillHints.password],
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Enter your password';
-                    }
-                    return null;
-                  },
-                ),
-                if (_error != null) ...[
+          child: AutofillGroup(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [
+                      AutofillHints.username,
+                      AutofillHints.email,
+                    ],
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    validator: _validateEmail,
+                  ),
                   const SizedBox(height: 16),
-                  Text(
-                    _error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  PasswordFormField(
+                    controller: _passwordController,
+
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _isSubmitting ? null : _submit(),
+                    autofillHints: const [AutofillHints.password],
+                    label: 'Password',
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Enter your password';
+                      }
+                      return null;
+                    },
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => context.push('/reset-password'),
+                      child: const Text('Reset password'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    onPressed: _isSubmitting ? null : _submit,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Sign in'),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () => context.push('/register/$segment'),
+                    child: const Text('Create an account'),
                   ),
                 ],
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/reset-password'),
-                    child: const Text('Reset password'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Sign in'),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: () => context.push('/register/$segment'),
-                  child: const Text('Create an account'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

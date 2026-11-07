@@ -32,7 +32,7 @@ class ImageStorageService {
   /// deployed to a different subdomain.
   static const String defaultBaseUrl = String.fromEnvironment(
     'R2_WORKER_URL',
-    defaultValue: 'https://campus-incidents-storage.kaberanshutis.workers.dev',
+    defaultValue: 'https://storage.campus-incident-reporting.workers.dev',
   );
 
   final String _baseUrl;

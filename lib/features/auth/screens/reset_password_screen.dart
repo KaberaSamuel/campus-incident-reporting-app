@@ -1,3 +1,5 @@
+import '../../../core/widgets/password_form_field.dart';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -39,9 +41,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     });
     try {
       await context.read<AuthProvider>().resetPassword(
-            email: _emailController.text,
-            newPassword: _passwordController.text,
-          );
+        email: _emailController.text,
+        newPassword: _passwordController.text,
+      );
       setState(() => _done = true);
     } catch (e) {
       setState(() => _error = friendlyFirebaseAuthMessage(e));
@@ -53,7 +55,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   String? _validateEmail(String? value) {
     final email = value?.trim().toLowerCase() ?? '';
     if (email.isEmpty) return 'Enter your email';
-    if (!email.endsWith(kStudentEmailSuffix) && !email.endsWith(kStaffEmailSuffix)) {
+    if (!email.endsWith(kStudentEmailSuffix) &&
+        !email.endsWith(kStaffEmailSuffix)) {
       return 'Use $kStudentEmailSuffix or $kStaffEmailSuffix';
     }
     return null;
@@ -101,10 +104,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         validator: _validateEmail,
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      PasswordFormField(
                         controller: _passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'New password'),
+
+                        label: 'New password',
                         validator: (value) {
                           if (value == null || value.length < 6) {
                             return 'At least 6 characters';
@@ -113,10 +116,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      PasswordFormField(
                         controller: _confirmController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Confirm password'),
+
+                        label: 'Confirm password',
                         validator: (value) {
                           if (value != _passwordController.text) {
                             return 'Passwords do not match';
@@ -128,7 +131,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         const SizedBox(height: 16),
                         Text(
                           _error!,
-                          style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ],
                       const SizedBox(height: 24),
@@ -138,7 +143,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text('Update password'),
                       ),

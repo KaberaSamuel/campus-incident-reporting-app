@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../notifications/widgets/inbox_nav_icon.dart';
+
 class StaffShell extends StatelessWidget {
   const StaffShell({required this.child, super.key});
 
@@ -41,12 +43,28 @@ class StaffShell extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => context.go(_routes[i]),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-          NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Incidents'),
-          NavigationDestination(icon: Icon(Icons.place_outlined), label: 'Locations'),
-          NavigationDestination(icon: Icon(Icons.inbox_outlined), label: 'Inbox'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+        destinations: [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            label: 'Incidents',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.place_outlined),
+            label: 'Locations',
+          ),
+          NavigationDestination(
+            icon: InboxNavIcon(),
+            selectedIcon: InboxNavIcon(selected: true),
+            label: 'Inbox',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
         ],
       ),
     );

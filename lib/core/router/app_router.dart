@@ -8,6 +8,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/reset_password_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
+import '../../features/auth/screens/verify_email_screen.dart';
 import '../../features/profile/screens/change_password_screen.dart';
 import '../../features/incidents/screens/incident_detail_screen.dart';
 import '../../features/incidents/screens/incident_list_screen.dart';
@@ -60,9 +61,11 @@ class AppRouter {
           builder: (context, state) =>
               const RegisterScreen(audience: AuthAudience.instructor),
         ),
+        GoRoute(path: '/register', redirect: (context, state) => '/login'),
         GoRoute(
-          path: '/register',
-          redirect: (context, state) => '/login',
+          path: '/verify-email',
+          name: 'verifyEmail',
+          builder: (context, state) => const VerifyEmailScreen(),
         ),
         GoRoute(
           path: '/reset-password',
@@ -144,9 +147,8 @@ class AppRouter {
                 ),
                 GoRoute(
                   path: 'inbox',
-                  builder: (context, state) => const InboxScreen(
-                    incidentRoutePrefix: '/staff/incident',
-                  ),
+                  builder: (context, state) =>
+                      const InboxScreen(incidentRoutePrefix: '/staff/incident'),
                 ),
                 GoRoute(
                   path: 'profile',
@@ -196,6 +198,14 @@ class AppRouter {
       if (location == '/change-password') return '/login';
       if (_isPublicAuthPath(location)) return null;
       return '/login';
+    }
+
+    if (!_auth.isEmailVerified) {
+      return location == '/verify-email' ? null : '/verify-email';
+    }
+    if (location == '/verify-email') {
+      final r = _auth.profile?.role ?? UserRole.student;
+      return r == UserRole.staff ? '/staff/dashboard' : '/student/home';
     }
 
     final role = _auth.profile?.role ?? UserRole.student;

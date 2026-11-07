@@ -39,16 +39,21 @@ class IncidentListProvider extends ChangeNotifier {
     if (reporterId != null) this.reporterId = reporterId;
   }
 
-  Future<void> refresh() async {
-    isLoading = true;
-    errorMessage = null;
-    hasMore = true;
-    _lastDocument = null;
-    _items.clear();
-    notifyListeners();
+  /// Reloads the first page. With [silent] the current items stay on screen
+  /// until the new page arrives (used for live updates).
+  Future<void> refresh({bool silent = false}) async {
+    if (!silent) {
+      isLoading = true;
+      errorMessage = null;
+      hasMore = true;
+      _lastDocument = null;
+      _items.clear();
+      notifyListeners();
+    }
 
     try {
       final page = await _fetchPage();
+      if (silent) _items.clear();
       _items.addAll(page.incidents);
       _lastDocument = page.lastDocument;
       hasMore = page.incidents.length >= _pageSize && page.lastDocument != null;

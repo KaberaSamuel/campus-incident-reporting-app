@@ -19,6 +19,7 @@ class AuthProvider extends ChangeNotifier {
   UserProfile? profile;
 
   bool get isSignedIn => user != null;
+  bool get isEmailVerified => user?.emailVerified ?? false;
   Future<void> _onAuthUserChanged(User? firebaseUser) async {
     user = firebaseUser;
     if (firebaseUser == null) {
@@ -64,22 +65,22 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> resendVerificationEmail() => _repository.sendVerificationEmail();
+
   Future<void> signOut() => _repository.signOut();
 
   Future<void> resetPassword({
     required String email,
     required String newPassword,
-  }) =>
-      _repository.resetPassword(email: email, newPassword: newPassword);
+  }) => _repository.resetPassword(email: email, newPassword: newPassword);
 
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
-  }) =>
-      _repository.changePassword(
-        currentPassword: currentPassword,
-        newPassword: newPassword,
-      );
+  }) => _repository.changePassword(
+    currentPassword: currentPassword,
+    newPassword: newPassword,
+  );
 
   Future<void> refreshUser() async {
     await _repository.reloadUser();

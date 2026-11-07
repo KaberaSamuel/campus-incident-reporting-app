@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -37,6 +39,7 @@ class _IncidentListScreenState extends State<IncidentListScreen> {
   late IncidentFilterValues _filters;
   IncidentListProvider? _listProvider;
   List<CampusLocation> _locations = [];
+  StreamSubscription<void>? _changes;
 
   @override
   void initState() {
@@ -47,6 +50,7 @@ class _IncidentListScreenState extends State<IncidentListScreen> {
 
   @override
   void dispose() {
+    _changes?.cancel();
     _listProvider?.dispose();
     super.dispose();
   }
@@ -61,6 +65,10 @@ class _IncidentListScreenState extends State<IncidentListScreen> {
     );
     _locations = await context.read<LocationRepository>().fetchAll();
     await _listProvider!.refresh();
+    _changes = context
+        .read<IncidentRepository>()
+        .watchChanges()
+        .listen((_) => _listProvider?.refresh(silent: true));
     if (mounted) setState(() {});
   }
 

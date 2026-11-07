@@ -55,3 +55,10 @@ app.*.map.json
 /worker/node_modules/
 /worker/.wrangler/
 /worker/.dev.vars
+
+# Firebase Admin credentials - never commit
+service-account*.json
+*-firebase-adminsdk-*.json
+
+# Node dependencies
+node_modules/

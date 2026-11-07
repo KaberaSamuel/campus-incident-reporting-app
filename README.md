@@ -22,7 +22,7 @@ If logs say **`database (default) does not exist`** but you created **`campus-in
 
 ## Test accounts
 
-Sign up with **full name**, password, and any email ending in `@alustudent.com` or `@alueducation.com` (dummy addresses are fine). No verification email — you go straight into the app after sign-up.
+Sign up with **full name**, password, and any email ending in `@alustudent.com` or `@alueducation.com` (use a real inbox you can open). A verification email is sent at sign-up; the app stays locked on the "Verify your email" screen until the link is opened.
 
 **Reset password** (from sign-in): email + new password (requires `firebase deploy --only functions` for `resetSchoolPassword`). **Change password** (from Profile): current + new password while signed in.
 

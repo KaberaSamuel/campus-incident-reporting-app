@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -48,25 +49,74 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     }
   }
 
+  /// Lets the user choose where a photo comes from: camera, gallery or files.
   Future<void> _pickImages() async {
     if (_images.length >= kMaxIncidentPhotos) {
       _showSnack('You can attach at most $kMaxIncidentPhotos photos.');
       return;
     }
-    final picker = ImagePicker();
-    final files = await picker.pickMultiImage(imageQuality: 85);
-    for (final file in files) {
+    final source = await showModalBottomSheet<_PhotoSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(context, _PhotoSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(context, _PhotoSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_open_outlined),
+              title: const Text('Browse files'),
+              onTap: () => Navigator.pop(context, _PhotoSource.files),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+
+    try {
+      final picked = <Uint8List>[];
+      switch (source) {
+        case _PhotoSource.camera:
+          final file = await ImagePicker()
+              .pickImage(source: ImageSource.camera, imageQuality: 85);
+          if (file != null) picked.add(await file.readAsBytes());
+        case _PhotoSource.gallery:
+          final files = await ImagePicker().pickMultiImage(imageQuality: 85);
+          for (final f in files) {
+            picked.add(await f.readAsBytes());
+          }
+        case _PhotoSource.files:
+          final files = await FilePicker.pickFiles(type: FileType.image);
+          for (final f in files) {
+            picked.add(await f.readAsBytes());
+          }
+      }
+      await _addImages(picked);
+    } catch (e) {
+      _showSnack('Could not load the photo. Try another one.');
+    }
+  }
+
+  Future<void> _addImages(List<Uint8List> raw) async {
+    for (final bytes in raw) {
       if (_images.length >= kMaxIncidentPhotos) {
         _showSnack('You can attach at most $kMaxIncidentPhotos photos.');
         break;
       }
-      final bytes = await file.readAsBytes();
       final compressed = await compressImageBytes(bytes);
-      if (compressed != null) {
-        _images.add(compressed);
-      }
+      if (compressed != null) _images.add(compressed);
     }
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   void _showSnack(String message) {
@@ -225,7 +275,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               OutlinedButton.icon(
                 onPressed: locationsEmpty ? null : _pickImages,
                 icon: const Icon(Icons.add_photo_alternate_outlined),
-                label: const Text('Add photos'),
+                label: const Text('Add photo'),
               ),
             ],
           ),
@@ -245,3 +295,5 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     );
   }
 }
+
+enum _PhotoSource { camera, gallery, files }
