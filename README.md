@@ -1,53 +1,101 @@
-# Campus Incidents
+# Campus Incident Reporting App
 
-Android Flutter app for ALU campus incident reporting. See [product.md](./product.md) and [implementation-plan.md](./implementation-plan.md).
+Android app built with Flutter for ALU students and staff to report campus problems (broken facilities, water or electricity outages, furniture, sanitation, safety) and follow them until they are resolved.
 
-## Setup
+**Author:** Samuel Kabera Nshuti · [s.kabera@alustudent.com](mailto:s.kabera@alustudent.com)
 
-**Full Firebase + Flutter steps:** [docs/FIREBASE_SETUP.md](./docs/FIREBASE_SETUP.md)
+## Features
 
-Quick summary:
+- **Students:** report an incident with category, title, description, location and up to 3 photos; browse all campus reports; search and filter (category, status, location, *My reports*); see status timeline; delete own report while still `submitted`.
+- **Staff:** dashboard with counts per status, update status with a staff note, manage locations.
+- **Notifications:** push (FCM) and in-app inbox when an incident is created (staff) or its status changes (reporter). Tapping opens the incident.
+- **Auth:** Firebase email/password, restricted to `@alustudent.com` (student) and `@alueducation.com` (staff), with email verification, password reset and change password.
 
-1. Install [Flutter](https://docs.flutter.dev/get-started/install) (stable) and Android Studio / SDK.
-2. Firebase project **campus-incident-reporting-app**: Android app `com.alu.campus_incidents`, **debug SHA-1**, Email/Password Auth, **Firestore** (database ID must match `kFirestoreDatabaseId` in `lib/core/firebase/app_firestore.dart`), Blaze for Functions. Photos use **Cloudflare R2** (see `worker/`), not Firebase Storage.
-3. `flutterfire configure` → updates `lib/firebase_options.dart` and `android/app/google-services.json`.
-4. `firebase deploy --only firestore,storage` then `firebase deploy --only functions` (after `cd functions && npm install`).
-5. `flutter pub get` && `flutter run`.
+## Tech stack
 
-If logs say **`database (default) does not exist`** but you created **`campus-incidents-db`**, either add a `(default)` database in Firebase or set `kFirestoreDatabaseId = 'campus-incidents-db'`.
+| Area | Choice |
+|---|---|
+| App | Flutter, Provider (`AuthProvider`, `IncidentListProvider`), `go_router` |
+| Backend | Firebase Auth, Cloud Firestore (+ security rules), Cloud Functions, FCM |
+| Photos | Cloudflare R2 behind a Cloudflare Worker (`worker/`) that verifies the Firebase ID token; images compressed on-device |
 
-## App ID
+Firebase Storage was not used because it requires the paid Blaze plan.
 
-`com.alu.campus_incidents` — display name **Campus Incidents**.
+## Architecture
 
-## Test accounts
+Feature folders in `lib/` (`auth, incidents, locations, notifications, profile, staff, student`), each split into screens, models, providers and repositories. The UI never talks to Firebase directly; only repositories do. Navigation uses two `ShellRoute`s (student and staff), and a `redirect` sends signed-out users to login and keeps each role on its own screens.
 
-Sign up with **full name**, password, and any email ending in `@alustudent.com` or `@alueducation.com` (use a real inbox you can open). A verification email is sent at sign-up; the app stays locked on the "Verify your email" screen until the link is opened.
+```
+Flutter UI → Providers → Repositories ─┬─ Firebase Auth
+                                       ├─ Firestore (+ rules)
+                                       ├─ Cloud Functions (notifications, password reset)
+                                       └─ Cloudflare Worker → R2 (photos)
+```
 
-**Reset password** (from sign-in): email + new password (requires `firebase deploy --only functions` for `resetSchoolPassword`). **Change password** (from Profile): current + new password while signed in.
+## Data model (Firestore)
 
-**Firebase project checklist** (fixes common log errors):
+| Collection | Purpose |
+|---|---|
+| `users/{uid}` | email, fullName, role (`student` \| `staff`), fcmTokens |
+| `incidents/{id}` | reporter, category, title, description, location, `imageUrls` (max 3), status, staffNote, `statusHistory[]`, timestamps |
+| `locations/{id}` | places students can pick (managed by staff) |
+| `notifications/{id}` | in-app inbox, written by Cloud Functions |
 
-1. [Create a Firestore database](https://console.cloud.google.com/datastore/setup?project=campus-incident-reporting-app) (Native mode) and [enable the Firestore API](https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=campus-incident-reporting-app) for `campus-incident-reporting-app`. Without a database, the app can hang on launch while loading your profile.
-2. Authentication → **Email/Password** enabled; Android app has your debug **SHA-1**; fresh `google-services.json` in `android/app/`.
-3. Authentication → **Settings** → **Authorized domains** includes `campus-incident-reporting-app.firebaseapp.com`.
+Status flow: `submitted` → `in_progress` → `resolved`.
 
-Staff should add at least one **location** before students can submit reports.
+## Access control
 
-## Manual test checklist
+Enforced in three places, not just by hiding buttons:
 
-- [ ] Register/login for both domains; reset password; change password; logout
-- [ ] Student: submit report with 0–3 photos; blocked when locations empty
-- [ ] Student: campus list, **My reports**, **You** tag, search/filters, pagination
-- [ ] Student: delete own report only while status is **submitted**
-- [ ] Staff: dashboard counts; update status and **staff note**; delete any report
-- [ ] Staff: manage locations; delete fails when a location is referenced
-- [ ] Push notification + in-app inbox on new report (staff) and status change (reporter)
-- [ ] Tap notification opens incident detail
+1. **Router:** role-based redirects.
+2. **Firestore rules:** students create only their own `submitted` incidents; only staff update `status`, `staffNote`, `updatedAt`, `statusHistory`; only staff edit locations; users read only their own profile and notifications.
+3. **Cloudflare Worker:** ALU accounts only, max 3 photos per incident, 5 MB each; delete allowed for the reporter (while `submitted`) or staff.
+
+## Getting started
+
+Prerequisites: Flutter (stable), Android SDK, Node.js, Firebase CLI, a Firebase project and a Cloudflare account.
+
+1. Create the Firebase project, register Android app `com.alu.campus_incidents` (with debug SHA-1), enable Email/Password auth and create a Firestore database. Details: [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md).
+2. `flutterfire configure` to generate `lib/firebase_options.dart` and `android/app/google-services.json`.
+3. Deploy rules and functions:
+   ```bash
+   firebase deploy --only firestore
+   cd functions && npm install && cd .. && firebase deploy --only functions
+   ```
+4. Deploy the photo Worker (see [worker/README.md](worker/README.md)).
+5. Run the app:
+   ```bash
+   flutter pub get
+   flutter run
+   ```
+
+Staff must add at least one location before students can submit reports.
+
+### Staff account
+
+Staff are created from the `@alueducation.com` domain. To create a pre-verified staff account for a demo:
+
+```bash
+SERVICE_ACCOUNT=./service-account.json \
+SEED_EMAIL=staff@alueducation.com SEED_NAME="ALU Staff" SEED_PASSWORD='<password>' \
+node scripts/seed-staff.js
+```
+
+`service-account.json` is git-ignored; never commit it.
+
+## Testing
+
+- **Automated:** unit/widget tests in `test/` (`flutter test`).
+- **Manual (Android emulator):** register/login for both domains; reset and change password; submit reports with 0–3 photos; search and filter; delete own report only while `submitted`; staff status update and note; manage locations (delete blocked when in use); push notification and inbox; tapping a notification opens the incident.
 
 ## Project layout
 
-- `lib/` — Flutter app (Provider, `go_router`, feature folders)
-- `functions/` — Firestore triggers for FCM + `notifications` collection
-- `worker/` — Cloudflare Worker that authorizes Cloudflare R2 photo uploads
-- `firestore.rules`, `firestore.indexes.json`
+```
+lib/          Flutter app
+functions/    Cloud Functions (FCM + notifications, password reset)
+worker/       Cloudflare Worker for R2 photo uploads
+scripts/      seed-staff.js
+test/         Tests
+docs/         Setup guide and assignment report
+firestore.rules, firestore.indexes.json
+```
